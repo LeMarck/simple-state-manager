@@ -6,7 +6,7 @@ The simple Redux-like state manager
 
 ⚙️ **Framework agnostic**. Can work with any UI or server framework.
 
-💻️ **Developer-friendly**. Simple API surface and helpful community.
+💻️ **Developer-friendly**. Simple API.
 
 ⚡️ **Maximum performance**. Static initialization provides boost in performance for runtime.
 
@@ -17,20 +17,23 @@ The simple Redux-like state manager
 ```js
 import { createStore } from 'store-track';
 
-const counter = createStore(0, {
-    add: (count, n) => count + n,
-    sub: (count, n) => count - n,
-    reset: () => 0
-});
+function counterReducer(state, action) {
+    if (action.type === 'add') return state + action.value;
+    if (action.type === 'sub') return state - action.value;
+    if (action.type === 'reset') return 0;
+    return state;
+}
+
+const counter = createStore(counterReducer, 0);
 
 counter.subscribe(n => console.log('counter:', n));
 // counter: 0
 
-counter.dispatch('add', 10);
+counter.dispatch({ type: 'add', value: 10 });
 // counter: 10
-counter.dispatch('sub', 5);
+counter.dispatch({ type: 'sub', value: 5 });
 // counter: 5
-counter.dispatch('reset');
+counter.dispatch({ type: 'reset' });
 // counter: 0
 ```
 
@@ -51,10 +54,12 @@ _Store_ is an object that holds state value.
 ```ts
 // Create new store.
 const store = createStore(
-    // Initial state
-    { count: 0 },
     // Declaring reducers and business logic
-    { add: ({ count }, n) => ({ count: count + n }) }
+    (state, action) => action.type === 'add'
+        ? { count: state.count + action.value }
+        : state,
+    // Initial state
+    { count: 0 }
 );
 ```
 
@@ -62,51 +67,18 @@ const store = createStore(
 * `.dispatch(action, data)` – Calls a reducer with the appropriate `action` and the `data` passed to it.
 * `.subscribe(handler)` – Call `handler` function each time when store is updated. 
 
-## TypeScript
-
-**Store Track** allows you to declare the type of state, as well as the types of events and parameters for complete type safety.
-
-```ts
-import { createStore } from 'store-track';
-
-// Actions declaration: map of event names to type of event data
-interface Actions {
-    // `set` event which goes with number as data
-    set: number,
-    // `inc` event which do not goes with any data
-    inc: never
-}
-
-const counter = createStore<number, Actions>(0, {
-    set: (count: number, n: number): number => n,
-    inc: (count: number): number => count + 1,
-});
-
-// Correct calls:
-counter.dispatch('set', 10);
-counter.dispatch('inc');
-
-// Compilation errors:
-store.dispatch('inc', 100)   // `inc` doesn’t have data
-store.dispatch('set', '100') // `set` event do not expect string data
-store.dispatch('dec')        // Unknown event
-```
-
 ## React
 
 ### Hook
 
 ```ts
 import { useEffect, useState } from 'react';
-import { Store } from 'store-track';
+import { Action, Store } from 'store-track';
 
-export function useStoreTrack<State, Actions>(store: Store<State, Actions>): State {
-    const [state, setState] = useState<State>(store.getState());
+export function useStoreTrack<S, A extends Action>(store: Store<S, A>): S {
+    const [, forceRender] = useReducer((s: number) => s + 1, 0);
 
-    useEffect(() => {
-        const unsubscribe = store.subscribe(setState);
-        return () => unsubscribe();
-    }, [store]);
+    useEffect(() => store.subscribe(forceRender), [store]);
 
     return state;
 }

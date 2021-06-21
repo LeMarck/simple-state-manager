@@ -1,25 +1,17 @@
-exports.createStore = function createStore(initialState, actions) {
+exports.createStore = function createStore(reducer, initialState) {
     let state = initialState;
     let subscriptions = [];
 
     return {
-        subscribe(handler) {
-            subscriptions.push(handler);
+        getState: () => state,
+        subscribe(listener) {
+            subscriptions.push(listener);
 
-            handler(state);
-
-            return () => {
-                subscriptions = subscriptions.filter(cb => cb !== handler);
-            };
+            return () => subscriptions.splice(subscriptions.indexOf(listener) >>> 0, 1);
         },
-        dispatch(action, data) {
-            if (actions[action]) {
-                state = actions[action](state, data);
-                subscriptions.forEach(cb => cb(state));
-            }
-        },
-        getState() {
-            return state;
+        dispatch(action) {
+            state = reducer(state, action);
+            subscriptions.forEach(cb => cb());
         }
     };
 };
